@@ -7,7 +7,7 @@ import pandas as pd
 from peak_trading_agent import (
     make_synth, FeatureStore, DonchianBreakout20,
     atr_sizing, fractional_kelly, risk_parity_weights,
-    kpis
+    kpis, simulate_intrabar
 )
 
 
@@ -68,4 +68,45 @@ def test_reporting_kpis():
     assert np.isclose(metrics["avgR"], 2/3)
     assert np.isclose(metrics["maxDD"], 0.25)
     assert np.isclose(metrics["cost_share"], 0.15)
+
+
+def test_simulate_intrabar_paths():
+    # Buy side: take-profit only
+    prob_tp, prob_sl = simulate_intrabar(100, 105, 99, 104, 98, 103, "buy")
+    assert np.isclose(prob_tp, 1.0) and np.isclose(prob_sl, 0.0)
+    assert prob_tp + prob_sl <= 1.0
+
+    # Buy side: stop-loss only
+    prob_tp, prob_sl = simulate_intrabar(100, 101, 95, 97, 96, 103, "buy")
+    assert np.isclose(prob_tp, 0.0) and np.isclose(prob_sl, 1.0)
+    assert prob_tp + prob_sl <= 1.0
+
+    # Buy side: both barriers depending on path
+    prob_tp, prob_sl = simulate_intrabar(100, 105, 95, 102, 96, 103, "buy")
+    assert np.isclose(prob_tp, 0.4) and np.isclose(prob_sl, 0.6)
+    assert prob_tp + prob_sl <= 1.0
+
+    # Sell side: take-profit only
+    prob_tp, prob_sl = simulate_intrabar(100, 101, 94, 96, 105, 95, "sell")
+    assert np.isclose(prob_tp, 1.0) and np.isclose(prob_sl, 0.0)
+    assert prob_tp + prob_sl <= 1.0
+
+    # Sell side: stop-loss only
+    prob_tp, prob_sl = simulate_intrabar(100, 106, 98, 104, 105, 95, "sell")
+    assert np.isclose(prob_tp, 0.0) and np.isclose(prob_sl, 1.0)
+    assert prob_tp + prob_sl <= 1.0
+
+    # Sell side: both barriers depending on path
+    prob_tp, prob_sl = simulate_intrabar(100, 110, 90, 96, 105, 95, "sell")
+    assert np.isclose(prob_tp, 0.6) and np.isclose(prob_sl, 0.4)
+    assert prob_tp + prob_sl <= 1.0
+
+    # Edge case: open equals tp equals stop
+    prob_tp, prob_sl = simulate_intrabar(100, 100, 100, 100, 100, 100, "buy")
+    assert np.isclose(prob_tp, 1.0) and np.isclose(prob_sl, 0.0)
+    assert prob_tp + prob_sl <= 1.0
+
+    prob_tp, prob_sl = simulate_intrabar(100, 100, 100, 100, 100, 100, "sell")
+    assert np.isclose(prob_tp, 1.0) and np.isclose(prob_sl, 0.0)
+    assert prob_tp + prob_sl <= 1.0
 
